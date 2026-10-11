@@ -1,38 +1,47 @@
-<?php 
-global $_REQUEST;
-$response = array('error'=>'');
+<?php
+// KinderBloom demo / early-access request handler.
+// Set the address that should receive demo requests:
 $contact_email = 'your_mail@mail.com';
 
-// type
-$type = $_REQUEST['type'];	
-// parse
-parse_str($_POST['data'], $post_data);	
-		
+$response = array('error' => '');
 
-		$user_name = stripslashes(strip_tags(trim($post_data['username'])));
-		$user_email = stripslashes(strip_tags(trim($post_data['email'])));
-		$user_subject = stripslashes(strip_tags(trim($post_data['subject'])));
-		$user_msg =stripslashes(strip_tags(trim( $post_data['message'])));
-			
-		if (trim($contact_email)!='') {
-			$subj = 'Message from Education';
-			$msg = $subj." \r\nName: $user_name \r\nE-mail: $user_email \r\nSubject: $user_subject \r\nMessage: $user_msg";
-		
-			$head = "Content-Type: text/plain; charset=\"utf-8\"\n"
-				. "X-Mailer: PHP/" . phpversion() . "\n"
-				. "Reply-To: $user_email\n"
-				. "To: $contact_email\n"
-				. "From: $user_email\n";
-		
-			if (!@mail($contact_email, $subj, $msg, $head)) {
-				$response['error'] = 'Error send message!';
-			}
-		} else 
-				$response['error'] = 'Error send message!';	
-		
-		
+parse_str(isset($_POST['data']) ? $_POST['data'] : '', $post_data);
 
-	//echo json_encode($post_data['username'].''.$post_data['email'].''$post_data['subject'].''.$post_data['message']);	
-	echo json_encode($response);
-	die();
+function kb_field($data, $key) {
+	$value = isset($data[$key]) ? $data[$key] : '';
+	// Strip tags and any line breaks that could be used for header injection
+	return trim(str_replace(array("\r", "\n"), ' ', strip_tags(stripslashes($value))));
+}
+
+$user_name     = kb_field($post_data, 'username');
+$user_email    = kb_field($post_data, 'email');
+$user_school   = kb_field($post_data, 'subject');
+$user_phone    = kb_field($post_data, 'phone');
+$user_role     = kb_field($post_data, 'role');
+$user_children = kb_field($post_data, 'children');
+$user_msg      = isset($post_data['message']) ? trim(strip_tags(stripslashes($post_data['message']))) : '';
+
+if (trim($contact_email) == '' || !filter_var($user_email, FILTER_VALIDATE_EMAIL)) {
+	$response['error'] = 'Error send message!';
+} else {
+	$subj = 'KinderBloom demo request: ' . $user_school;
+	$msg  = "New demo request from the KinderBloom landing page\r\n\r\n"
+		. "Name: $user_name\r\n"
+		. "E-mail: $user_email\r\n"
+		. "School: $user_school\r\n"
+		. "Phone: $user_phone\r\n"
+		. "Role: $user_role\r\n"
+		. "Children: $user_children\r\n\r\n"
+		. "Message:\r\n$user_msg\r\n";
+
+	$head = "Content-Type: text/plain; charset=\"utf-8\"\r\n"
+		. "Reply-To: $user_email\r\n";
+
+	if (!@mail($contact_email, $subj, $msg, $head)) {
+		$response['error'] = 'Error send message!';
+	}
+}
+
+echo json_encode($response);
+die();
 ?>
